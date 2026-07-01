@@ -338,3 +338,44 @@ uintptr_t ScanForShieldFakeEquipAccess() {
 
     return outcome.address;
 }
+
+// ── Blood Decals scanner ───────────────────────────────────────────────
+
+uintptr_t ScanForBloodDecalActorManagerPublish() {
+    // Anchor at the first publish store:
+    //   mov [rip+disp32], rdi
+    //
+    // The following instructions publish rdi+0x130 and rdi+0x1B0 into adjacent
+    // global slots used by the Blood Decals worker.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "blood-decals-publish-store-wide-1.12.02",
+            "48 89 3D ?? ?? ?? ?? 48 8D 87 30 01 00 00 48 89 05 ?? ?? ?? ?? "
+            "48 8D 87 B0 01 00 00 48 89 05 ?? ?? ?? ?? 44 88 2D ?? ?? ?? ?? "
+            "8B 35 ?? ?? ?? ?? 39 35 ?? ?? ?? ?? 74 0E 8B D6 48 8D 0D ?? ?? ?? ?? "
+            "E8 ?? ?? ?? ?? 39 35",
+            0,
+        },
+        {
+            "blood-decals-publish-store-exact-1.12.02",
+            "48 89 3D 0F 21 AD 05 48 8D 87 30 01 00 00 48 89 05 09 21 AD 05 "
+            "48 8D 87 B0 01 00 00 48 89 05 03 21 AD 05 44 88 2D 04 21 AD 05 "
+            "8B 35 9E E9 96 05 39 35 08 21 AD 05 74 0E 8B D6 48 8D 0D F5 20 AD 05 "
+            "E8 60 7A 00 00 39 35",
+            0,
+        },
+    };
+
+    const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
+    if (outcome.status == ScanStatus::Ambiguous) {
+        Log("scanner: blood-decals publish store found multiple matches, install failed");
+        return 0;
+    }
+
+    if (outcome.status != ScanStatus::Unique) {
+        Log("scanner: blood-decals publish store found 0 matches");
+        return 0;
+    }
+
+    return outcome.address;
+}

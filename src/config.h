@@ -14,6 +14,14 @@ struct ShieldConfig {
     bool operator==(const ShieldConfig&) const = default;
 };
 
+struct BloodDecalsConfig {
+    bool enabled = false;
+    float lifetime_seconds = 600.0f;
+    DWORD scan_interval_ms = 1000;
+
+    bool operator==(const BloodDecalsConfig&) const = default;
+};
+
 struct GeneralConfig {
     bool enabled = true;
     bool log_enabled = true;
@@ -27,6 +35,7 @@ struct GeneralConfig {
 struct ModConfig {
     GeneralConfig general;
     ShieldConfig shield;
+    BloodDecalsConfig blood_decals;
 
     bool operator==(const ModConfig&) const = default;
 };
@@ -35,6 +44,10 @@ struct ModConfig {
 
 inline bool ShouldInstallShieldHideHook(const ModConfig& config) {
     return config.general.enabled && config.shield.enabled;
+}
+
+inline bool ShouldInstallBloodDecalsHook(const ModConfig& config) {
+    return config.general.enabled && config.blood_decals.enabled;
 }
 
 // ── Config I/O ─────────────────────────────────────────────────────────

@@ -44,6 +44,7 @@ add_library(crimson-desert-tweaks SHARED
     src/config.cpp
     src/config_watcher.cpp
     src/dllmain.cpp
+    src/hooks/blood_decals.cpp
     src/hooks/shield_hide.cpp
     src/logger.cpp
     src/scanner.cpp
