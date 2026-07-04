@@ -12,7 +12,8 @@
 6. **Hook 拦截优先**：遇到项目 Hook 拦截时，先停下说明原因，不要尝试绕过。
 7. **Hook 误拦截处理**：如果怀疑 Hook 误拦截，除非用户已在当前对话明确要求修改该 Hook，否则必须先询问用户；得到明确同意后才允许改 Hook 或放宽规则。
 8. **不更新 README 记流水账**：工作进度只写 `PROGRESS.md`；README 只在用户明确要求或公开说明确实变化时更新。
-9. **项目规则随仓库维护**：`AGENTS.md`、`CLAUDE.md`、`.claude/`、`PROGRESS.md` 属于项目规则/进度文件，随仓库提交和维护。
+9. **ASI 与 INI 配套输出**：每次编译生成 `crimson-desert-tweaks.asi` 后，必须同时把默认 `crimson-desert-tweaks.ini` 放在同一层级目录，方便用户把 ASI 和配置文件一起安装。
+10. **项目规则随仓库维护**：`AGENTS.md`、`CLAUDE.md`、`.claude/`、`PROGRESS.md` 属于项目规则/进度文件，随仓库提交和维护。
 
 ## 项目概述
 
@@ -30,13 +31,10 @@ cmake -S . -B build -A x64
 cmake --build build --config Release
 # 输出目录: build/Release/
 #   crimson-desert-tweaks.asi
-# 自动复制到模组安装目录:
-#   D:/红色沙漠工具/模组/Crimson Desert Tweaks/
-#   ├── crimson-desert-tweaks.asi
-#   └── crimson-desert-tweaks.ini  （项目根目录的 .ini 模板自动同步）
+#   crimson-desert-tweaks.ini  （从项目根目录默认模板复制，必须与 ASI 同层）
 ```
 
-**注意**：项目根目录的 `crimson-desert-tweaks.ini` 是默认配置模板，构建时自动复制到输出目录。用户通过 DMM 安装后可在模组目录中修改配置。
+**注意**：项目根目录的 `crimson-desert-tweaks.ini` 是默认配置模板，构建时自动复制到 `build/Release/`，并与 `crimson-desert-tweaks.asi` 同层。不要自动复制到游戏目录或模组目录；用户通过 DMM 安装后可在模组目录中修改配置。
 
 首次构建需要从 GitHub 下载 Zydis。若网络不通，参考下方「联网操作规则」章节。
 
@@ -176,6 +174,9 @@ Enable=1
 - 游戏目录: `D:\steam\steamapps\common\Crimson Desert\bin64\`
 - 模组输出目录: `D:\红色沙漠工具\模组\Crimson Desert Tweaks\`
 - 逆向参考工具: `D:\红色沙漠工具\修改器\`
+- 逆向技术文档: `docs/reverse-engineering/`
+  - Shield Hide: `docs/reverse-engineering/shield-hide.md`
+  - Blood Decals: `docs/reverse-engineering/blood-decals.md`
 - 同类 ASI 模组参考（逆向分析参考）:
   - `D:/AI Agent Resources/GitHub/CrimsonDesertTools-main`
   - `D:/AI Agent Resources/GitHub/CrimsonDesert-player-status-modifier-master`

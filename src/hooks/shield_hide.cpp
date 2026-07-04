@@ -8,10 +8,11 @@
 
 #include <atomic>
 #include <cstdint>
+#include <vector>
 
 namespace {
 
-SafetyHookMid g_shield_fake_equip_hook{};
+std::vector<SafetyHookMid> g_shield_fake_equip_hooks;
 
 constexpr uintptr_t kMinimumPointerAddress = 0x10000;
 
@@ -59,26 +60,41 @@ bool InstallShieldHideHook() {
         return true;
     }
 
-    const uintptr_t target = ScanForShieldFakeEquipAccess();
-    if (target == 0) {
+    const auto targets = ScanForShieldFakeEquipAccesses();
+    if (targets.empty()) {
         Log("shield: failed to find ShieldFakeEquip access point");
         return false;
     }
 
-    auto hook_result = SafetyHookMid::create(reinterpret_cast<void*>(target), ShieldFakeEquipCallback);
-    if (!hook_result.has_value()) {
-        Log("shield: failed to create mid hook");
-        return false;
+    std::vector<SafetyHookMid> hooks;
+    hooks.reserve(targets.size());
+    for (const uintptr_t target : targets) {
+        auto hook_result = SafetyHookMid::create(reinterpret_cast<void*>(target), ShieldFakeEquipCallback);
+        if (!hook_result.has_value()) {
+            Log("shield: failed to create mid hook at 0x%p", reinterpret_cast<void*>(target));
+            for (auto& hook : hooks) {
+                hook.reset();
+            }
+            return false;
+        }
+
+        hooks.push_back(std::move(*hook_result));
+        Log("shield: installed hook at 0x%p", reinterpret_cast<void*>(target));
     }
 
-    g_shield_fake_equip_hook = std::move(*hook_result);
-    Log("shield: installed hook at 0x%p", reinterpret_cast<void*>(target));
+    g_shield_fake_equip_hooks = std::move(hooks);
+    Log("shield: installed %llu hook(s)",
+        static_cast<unsigned long long>(g_shield_fake_equip_hooks.size()));
     return true;
 }
 
 void RemoveShieldHideHook() {
-    if (g_shield_fake_equip_hook) {
-        g_shield_fake_equip_hook.reset();
-        Log("shield: removed hook");
+    if (!g_shield_fake_equip_hooks.empty()) {
+        for (auto& hook : g_shield_fake_equip_hooks) {
+            hook.reset();
+        }
+        const auto count = g_shield_fake_equip_hooks.size();
+        g_shield_fake_equip_hooks.clear();
+        Log("shield: removed %llu hook(s)", static_cast<unsigned long long>(count));
     }
 }

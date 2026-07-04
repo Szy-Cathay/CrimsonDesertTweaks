@@ -71,19 +71,44 @@ if(MSVC)
     )
 endif()
 
+# ── Tests ───────────────────────────────────────────────────────────────
+
+enable_testing()
+
+add_executable(crimson-desert-tweaks-tests EXCLUDE_FROM_ALL
+    tests/config_and_blood_decals_test.cpp
+    src/config.cpp
+)
+
+target_include_directories(crimson-desert-tweaks-tests PRIVATE src)
+
+target_compile_definitions(crimson-desert-tweaks-tests PRIVATE
+    NOMINMAX
+    UNICODE
+    _UNICODE
+    WIN32_LEAN_AND_MEAN
+)
+
+if(MSVC)
+    target_compile_options(crimson-desert-tweaks-tests PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+        $<$<COMPILE_LANGUAGE:CXX>:/EHsc>
+        $<$<COMPILE_LANGUAGE:CXX>:/W4>
+        $<$<COMPILE_LANGUAGE:CXX>:/permissive->
+    )
+endif()
+
+add_test(NAME crimson-desert-tweaks-tests COMMAND crimson-desert-tweaks-tests)
+
 set_target_properties(crimson-desert-tweaks PROPERTIES
     OUTPUT_NAME "crimson-desert-tweaks"
     SUFFIX ".asi"
 )
 
-# ── Copy output to mod directory ───────────────────────────────────────
-
-set(CRIMSON_DESERT_TWEAKS_OUTPUT_DIR "D:/红色沙漠工具/模组/Crimson Desert Tweaks" CACHE PATH "Output directory for .asi and default .ini")
-
+# Keep the default INI next to the ASI in the build output. Installation is manual.
 add_custom_command(TARGET crimson-desert-tweaks POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CRIMSON_DESERT_TWEAKS_OUTPUT_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:crimson-desert-tweaks>"
-        "${CRIMSON_DESERT_TWEAKS_OUTPUT_DIR}/$<TARGET_FILE_NAME:crimson-desert-tweaks>"
-    COMMENT "Copying .asi to output directory..."
+        "${CMAKE_SOURCE_DIR}/crimson-desert-tweaks.ini"
+        "$<TARGET_FILE_DIR:crimson-desert-tweaks>/crimson-desert-tweaks.ini"
+    COMMENT "Copying default INI next to ASI in build output..."
 )
