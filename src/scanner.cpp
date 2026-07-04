@@ -309,11 +309,88 @@ ScanOutcome ScanInSections(const PatternDefinition* definitions,
     return saw_ambiguous ? ScanOutcome{0, ScanStatus::Ambiguous} : ScanOutcome{};
 }
 
+std::vector<uintptr_t> ScanAllInSections(const PatternDefinition* definitions,
+                                         const std::size_t definition_count,
+                                         const std::size_t max_results) {
+    for (int pass = 0; pass < 2; ++pass) {
+        const bool text_only = pass == 0;
+        const auto sections = EnumerateMainModuleSections(text_only);
+        if (sections.empty()) {
+            continue;
+        }
+
+        for (std::size_t definition_index = 0; definition_index < definition_count; ++definition_index) {
+            const auto& definition = definitions[definition_index];
+            const auto pattern = ParsePattern(definition.text);
+            const auto matches = ScanPattern(sections, pattern, max_results);
+
+            Log("scanner: DIAG multi pattern=\"%s\" pass=%s match_count=%llu",
+                definition.name != nullptr ? definition.name : "<unnamed>",
+                text_only ? ".text" : "executable",
+                static_cast<unsigned long long>(matches.size()));
+
+            if (matches.empty()) {
+                continue;
+            }
+
+            std::vector<uintptr_t> addresses;
+            addresses.reserve(matches.size());
+            for (const auto& match : matches) {
+                const uintptr_t hook_address = match.address + definition.hook_offset;
+                Log("scanner: DIAG MULTI MATCH pattern=\"%s\" addr=0x%p hook_off=0x%llX final=0x%p",
+                    definition.name != nullptr ? definition.name : "<unnamed>",
+                    reinterpret_cast<void*>(match.address),
+                    static_cast<unsigned long long>(definition.hook_offset),
+                    reinterpret_cast<void*>(hook_address));
+                addresses.push_back(hook_address);
+            }
+            return addresses;
+        }
+    }
+
+    const auto image_span = EnumerateMainModuleImageSpan();
+    if (image_span.begin == nullptr || image_span.size == 0) {
+        Log("scanner: DIAG multi failed - no image span available");
+        return {};
+    }
+
+    const std::vector<SectionSpan> image_spans{image_span};
+    for (std::size_t definition_index = 0; definition_index < definition_count; ++definition_index) {
+        const auto& definition = definitions[definition_index];
+        const auto pattern = ParsePattern(definition.text);
+        const auto matches = ScanPattern(image_spans, pattern, max_results);
+
+        Log("scanner: DIAG multi pattern=\"%s\" pass=image match_count=%llu",
+            definition.name != nullptr ? definition.name : "<unnamed>",
+            static_cast<unsigned long long>(matches.size()));
+
+        if (matches.empty()) {
+            continue;
+        }
+
+        std::vector<uintptr_t> addresses;
+        addresses.reserve(matches.size());
+        for (const auto& match : matches) {
+            const uintptr_t hook_address = match.address + definition.hook_offset;
+            Log("scanner: DIAG MULTI MATCH pattern=\"%s\" addr=0x%p hook_off=0x%llX final=0x%p",
+                definition.name != nullptr ? definition.name : "<unnamed>",
+                reinterpret_cast<void*>(match.address),
+                static_cast<unsigned long long>(definition.hook_offset),
+                reinterpret_cast<void*>(hook_address));
+            addresses.push_back(hook_address);
+        }
+        return addresses;
+    }
+
+    Log("scanner: DIAG multi failed - all passes exhausted, 0 matches");
+    return {};
+}
+
 }  // namespace
 
 // ── Shield Hide scanner ────────────────────────────────────────────────
 
-uintptr_t ScanForShieldFakeEquipAccess() {
+std::vector<uintptr_t> ScanForShieldFakeEquipAccesses() {
     // Hook at "mov rcx,[rax]" (offset 7 into pattern).  In the callback we
     // swap rax to point at a dummy null qword so that rcx becomes 0, then the
     // original "test rcx,rcx / jz skip" naturally bypasses the render call.
@@ -323,16 +400,259 @@ uintptr_t ScanForShieldFakeEquipAccess() {
             "48 8B 05 0A 3B C3 04 48 8B 08",
             7,  // hook at mov rcx,[rax]
         },
+        {
+            "reserve-slot-key-load-cluster-1.13.00",
+            "48 8B 05 ?? ?? ?? ?? 48 8B 08 48 85 C9 74 44 80 39 00 74 3F "
+            "48 8D 55 67 E8 ?? ?? ?? ?? 8B 45 67 89 45 77 "
+            "48 8B 0D ?? ?? ?? ?? 48 83 C1 60 48 8D 55 77 "
+            "E8 ?? ?? ?? ?? 48 85 C0",
+            7,  // hook at mov rcx,[rax]
+        },
+    };
+
+    auto addresses = ScanAllInSections(kPatterns,
+                                       sizeof(kPatterns) / sizeof(kPatterns[0]),
+                                       16);
+    if (addresses.empty()) {
+        Log("scanner: shield-fake-equip found 0 matches");
+        return {};
+    }
+
+    return addresses;
+}
+
+uintptr_t ScanForShieldFakeEquipAccess() {
+    const auto addresses = ScanForShieldFakeEquipAccesses();
+    if (addresses.empty()) {
+        return 0;
+    }
+
+    if (addresses.size() > 1) {
+        Log("scanner: shield-fake-equip legacy single-address request got %llu matches; using first",
+            static_cast<unsigned long long>(addresses.size()));
+    }
+    return addresses.front();
+}
+
+// ── Blood Decals scanner ───────────────────────────────────────────────
+
+uintptr_t ScanForBloodDecalActorManagerPublish() {
+    // Anchor at the first publish store:
+    //   mov [rip+disp32], rdi
+    //
+    // The following stores are kept in the signature for uniqueness.  The
+    // Blood Decals worker only needs the manager slot, then follows the
+    // effect-list path found in the reference ASI.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "blood-decals-publish-store-wide-1.12.02",
+            "48 89 3D ?? ?? ?? ?? 48 8D 87 30 01 00 00 48 89 05 ?? ?? ?? ?? "
+            "48 8D 87 B0 01 00 00 48 89 05 ?? ?? ?? ?? 44 88 2D ?? ?? ?? ?? "
+            "8B 35 ?? ?? ?? ?? 39 35 ?? ?? ?? ?? 74 0E 8B D6 48 8D 0D ?? ?? ?? ?? "
+            "E8 ?? ?? ?? ?? 39 35",
+            0,
+        },
+        {
+            "blood-decals-publish-store-exact-1.12.02",
+            "48 89 3D 0F 21 AD 05 48 8D 87 30 01 00 00 48 89 05 09 21 AD 05 "
+            "48 8D 87 B0 01 00 00 48 89 05 03 21 AD 05 44 88 2D 04 21 AD 05 "
+            "8B 35 9E E9 96 05 39 35 08 21 AD 05 74 0E 8B D6 48 8D 0D F5 20 AD 05 "
+            "E8 60 7A 00 00 39 35",
+            0,
+        },
     };
 
     const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
     if (outcome.status == ScanStatus::Ambiguous) {
-        Log("scanner: shield-fake-equip found multiple matches, install failed");
+        Log("scanner: blood-decals publish store found multiple matches, install failed");
         return 0;
     }
 
     if (outcome.status != ScanStatus::Unique) {
-        Log("scanner: shield-fake-equip found 0 matches");
+        Log("scanner: blood-decals publish store found 0 matches");
+        return 0;
+    }
+
+    return outcome.address;
+}
+
+uintptr_t ScanForBloodParticleRuntimeCheck() {
+    // Hook at:
+    //   cmp byte ptr [rcx+135h], 0
+    //
+    // At this instruction RCX is the particle/emitter data object used by the
+    // game's real _isBloodParticle runtime path.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "blood-particle-runtime-check-wide-1.12.02",
+            "48 8B 0A C4 41 28 57 D2 80 B9 35 01 00 00 00 74 ?? "
+            "C5 78 2F 95 90 01 00 00 0F 87 ?? ?? ?? ?? 66 C7 45 90 00 00 C6 45 92 01",
+            8,
+        },
+        {
+            "blood-particle-runtime-check-exact-1.12.02",
+            "48 8B 0A C4 41 28 57 D2 80 B9 35 01 00 00 00 74 0E "
+            "C5 78 2F 95 90 01 00 00 0F 87 AF 05 00 00 66 C7 45 90 00 00 C6 45 92 01",
+            8,
+        },
+    };
+
+    const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
+    if (outcome.status == ScanStatus::Ambiguous) {
+        Log("scanner: blood particle runtime check found multiple matches, install failed");
+        return 0;
+    }
+
+    if (outcome.status != ScanStatus::Unique) {
+        Log("scanner: blood particle runtime check found 0 matches");
+        return 0;
+    }
+
+    return outcome.address;
+}
+
+uintptr_t ScanForBloodParticleSimulationCheck() {
+    // Hook at:
+    //   cmp byte ptr [rcx+135h], 0
+    //
+    // This is the second confirmed _isBloodParticle runtime read.  RCX is
+    // loaded from [r14] immediately before the check.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "blood-particle-simulation-check-wide-1.12.02",
+            "49 8B 0E C5 C8 57 F6 80 B9 35 01 00 00 00 75 ?? "
+            "48 81 C1 08 01 00 00 C5 F8 77 E8 ?? ?? ?? ??",
+            7,
+        },
+        {
+            "blood-particle-simulation-check-exact-1.12.02",
+            "49 8B 0E C5 C8 57 F6 80 B9 35 01 00 00 00 75 45 "
+            "48 81 C1 08 01 00 00 C5 F8 77 E8 5F 07 00 00",
+            7,
+        },
+    };
+
+    const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
+    if (outcome.status == ScanStatus::Ambiguous) {
+        Log("scanner: blood particle simulation check found multiple matches, install failed");
+        return 0;
+    }
+
+    if (outcome.status != ScanStatus::Unique) {
+        Log("scanner: blood particle simulation check found 0 matches");
+        return 0;
+    }
+
+    return outcome.address;
+}
+
+uintptr_t ScanForTerrainParticleRuntimeCheck() {
+    // Hook at:
+    //   cmp byte ptr [rcx+12Bh], 0
+    //
+    // At this instruction RCX is the particle/emitter data object used by the
+    // game's terrain decal render path.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "terrain-particle-runtime-check-wide-1.12.02",
+            "48 8B 4D A8 80 B9 2B 01 00 00 00 0F 84 ?? ?? ?? ?? "
+            "4D 85 E4 0F 84 ?? ?? ?? ?? 48 85 83 58 07 00 00 0F 85 ?? ?? ?? ?? "
+            "C5 FA 10 AB 8C 07 00 00",
+            4,
+        },
+        {
+            "terrain-particle-runtime-check-exact-1.12.02",
+            "48 8B 4D A8 80 B9 2B 01 00 00 00 0F 84 E1 00 00 00 "
+            "4D 85 E4 0F 84 D8 00 00 00 48 85 83 58 07 00 00 0F 85 CB 00 00 00 "
+            "C5 FA 10 AB 8C 07 00 00",
+            4,
+        },
+    };
+
+    const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
+    if (outcome.status == ScanStatus::Ambiguous) {
+        Log("scanner: terrain particle runtime check found multiple matches, install failed");
+        return 0;
+    }
+
+    if (outcome.status != ScanStatus::Unique) {
+        Log("scanner: terrain particle runtime check found 0 matches");
+        return 0;
+    }
+
+    return outcome.address;
+}
+
+uintptr_t ScanForBloodParticleLifetimeUpdate() {
+    // Hook immediately after the runtime+0x20B branch refreshes the
+    // particle lifetime parameter block:
+    //   cmp byte ptr [rdi+20Bh], 0
+    //   jz ...
+    //   lea rcx, [rdi+2B0h]
+    //   call FUN_140696FD0
+    //
+    // Hooking after the call avoids writing runtime+0x2D8/+0x2DC before the
+    // game repopulates them from emitter data in the same update.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "blood-particle-lifetime-post-copy-wide-1.12.02",
+            "80 BF 0B 02 00 00 00 74 ?? 48 8D 8F B0 02 00 00 "
+            "48 8D 95 80 01 00 00 E8 ?? ?? ?? ?? 48 8B 85 80 01 00 00",
+            0x1C,
+        },
+        {
+            "blood-particle-lifetime-post-copy-exact-1.12.02",
+            "80 BF 0B 02 00 00 00 74 1A 48 8D 8F B0 02 00 00 "
+            "48 8D 95 80 01 00 00 E8 07 93 FF FF 48 8B 85 80 01 00 00",
+            0x1C,
+        },
+    };
+
+    const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
+    if (outcome.status == ScanStatus::Ambiguous) {
+        Log("scanner: blood particle lifetime update found multiple matches, install failed");
+        return 0;
+    }
+
+    if (outcome.status != ScanStatus::Unique) {
+        Log("scanner: blood particle lifetime update found 0 matches");
+        return 0;
+    }
+
+    return outcome.address;
+}
+
+uintptr_t ScanForGroundBloodHitMaterialEffectEntryBuild() {
+    // FUN_1405497F0 builds the 0x1C0 hit-material effect entry.  The caller
+    // passes the material config in R9 and the entry pointer as the 7th
+    // argument.  GroundBloodDecal uses category byte param_4+0x11A == 8.
+    static constexpr PatternDefinition kPatterns[] = {
+        {
+            "ground-blood-hit-material-entry-build-wide-1.12.02",
+            "48 89 5C 24 08 48 89 6C 24 18 89 54 24 10 56 57 "
+            "41 54 41 56 41 57 48 83 EC 30 49 8B F1 48 8B E9 "
+            "85 D2 74 ?? 4C 8D 44 24 68 48 8B D1 "
+            "48 8B BC 24 90 00 00 00",
+            0,
+        },
+        {
+            "ground-blood-hit-material-entry-build-exact-1.12.02",
+            "48 89 5C 24 08 48 89 6C 24 18 89 54 24 10 56 57 "
+            "41 54 41 56 41 57 48 83 EC 30 49 8B F1 48 8B E9 "
+            "85 D2 74 35 4C 8D 44 24 68 48 8B D1 "
+            "48 8B BC 24 90 00 00 00",
+            0,
+        },
+    };
+
+    const auto outcome = ScanInSections(kPatterns, sizeof(kPatterns) / sizeof(kPatterns[0]));
+    if (outcome.status == ScanStatus::Ambiguous) {
+        Log("scanner: ground blood hit-material entry build found multiple matches, install failed");
+        return 0;
+    }
+
+    if (outcome.status != ScanStatus::Unique) {
+        Log("scanner: ground blood hit-material entry build found 0 matches");
         return 0;
     }
 
