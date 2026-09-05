@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 
 project(crimson-desert-tweaks LANGUAGES CXX RC)
 
+# Drop the old auto-install output override if it exists in an existing build tree.
+unset(CRIMSON_DESERT_TWEAKS_OUTPUT_DIR CACHE)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

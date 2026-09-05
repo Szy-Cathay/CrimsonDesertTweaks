@@ -1,235 +1,98 @@
 # Crimson Desert Tweaks — Codex 项目规则
 
-## 开工必读清单（先读这里）
+## 开工与范围
 
-在本项目中操作前，先遵守这几条硬规则：
+- 解释、计划和回复使用中文；用户不懂编程，要说明实际影响和验证结果。代码注释沿用现有风格。
+- 开工先读 `PROGRESS.md` 的当前状态。编码前说明目标、假设、涉及文件和验证方式；影响范围的歧义先澄清。
+- 当前暂停新功能开发和地面血迹延时实验；只有用户明确提出新的开发需求时才恢复。v2.00.02 适配成果已撤销，当前版本兼容性尚未确认。
+- 只修改当前请求必需的内容。保留用户已有工作，不顺手重构；已存在的文件先读再用补丁编辑，不使用整文件覆盖命令。
+- `AGENTS.md` 和 `PROGRESS.md` 随仓库维护。进度写入 `PROGRESS.md`；README 仅在用户要求或公开说明变化时更新。
 
-1. **先说明再动手**：编码前先用中文写明假设、修改步骤、验证方式；不确定就先问。
-2. **只改必要内容**：每一行改动都必须能对应用户当前需求，不顺手重构、不顺手清理无关代码。
-3. **不自动安装产物**：构建输出只留在 `build/Release/`，不要复制到游戏目录或模组目录。
-4. **源码改动要更新进度**：改 `src/` 下源码时，实时更新 `PROGRESS.md`，写清做了什么、发现了什么、下一步。
-5. **配置别名不能破坏**：修改配置读取时，`Enable`/`Enabled` 这类别名必须继续走 `ReadBoolAlias` 逻辑。
-6. **Hook 拦截优先**：遇到项目 Hook 拦截时，先停下说明原因，不要尝试绕过。
-7. **Hook 误拦截处理**：如果怀疑 Hook 误拦截，除非用户已在当前对话明确要求修改该 Hook，否则必须先询问用户；得到明确同意后才允许改 Hook 或放宽规则。
-8. **不更新 README 记流水账**：工作进度只写 `PROGRESS.md`；README 只在用户明确要求或公开说明确实变化时更新。
-9. **ASI 与 INI 配套输出**：每次编译生成 `crimson-desert-tweaks.asi` 后，必须同时把默认 `crimson-desert-tweaks.ini` 放在同一层级目录，方便用户把 ASI 和配置文件一起安装。
-10. **项目规则随仓库维护**：`AGENTS.md`、`CLAUDE.md`、`.claude/`、`PROGRESS.md` 属于项目规则/进度文件，随仓库提交和维护。
+## 当前代码与资料入口
 
-## 项目概述
+项目是 C++23 / MSVC x64 ASI 模组，使用 SafetyHook 和 Zydis；构建以 `CMakeLists.txt` 为准。
 
-ASI 模组（DLL），通过 mid-function hook 修改 Crimson Desert 的内存数据。采用功能模块化设计，每个功能独立管理。
+| 内容 | 当前事实 | 修改前阅读 |
+|------|----------|------------|
+| Shield Hide | 已发布；主线保留旧版本适配路径，v2.00.02 未验收 | `src/hooks/shield_hide.cpp`、`docs/reverse-engineering/shield-hide.md` |
+| Blood Decals | 主线仍包含血迹代码和早期地面血迹路径；地面效果未完成，开发暂停 | `src/hooks/blood_decals.cpp`、`src/hooks/blood_decals_timing.h`、`docs/reverse-engineering/blood-decals.md` |
+| 扫描与初始化 | 扫描在 `src/scanner.cpp/h`，安装/卸载在 `src/dllmain.cpp` | 修改功能时核对这两处注册 |
+| 配置与热重载 | 配置在 `src/config.cpp/h`，监视线程在 `src/config_watcher.cpp/h` | 默认键和值以根目录 INI 为准 |
+| 日志与测试 | 日志经 `src/logger.cpp/h`；配置/血迹测试在 `tests/config_and_blood_decals_test.cpp` | 按实际修改选择验证 |
 
-- **目标游戏**: Crimson Desert
-- **语言**: C++23 / MSVC x64
-- **Hook 框架**: safetyhook (含 Zydis 反汇编引擎)
-- **构建**: CMake + Visual Studio 2022+
+旧交接和实验文档属于历史证据，不能作为恢复开发的授权或当前待办；读取时先核对记录的游戏版本和日期。
 
-## 构建
+## 构建与验证
 
-```bash
+在仓库根目录使用 PowerShell：
+
+```powershell
 cmake -S . -B build -A x64
 cmake --build build --config Release
-# 输出目录: build/Release/
-#   crimson-desert-tweaks.asi
-#   crimson-desert-tweaks.ini  （从项目根目录默认模板复制，必须与 ASI 同层）
 ```
 
-**注意**：项目根目录的 `crimson-desert-tweaks.ini` 是默认配置模板，构建时自动复制到 `build/Release/`，并与 `crimson-desert-tweaks.asi` 同层。不要自动复制到游戏目录或模组目录；用户通过 DMM 安装后可在模组目录中修改配置。
+配置或血迹逻辑变化时，显式构建并运行相关测试：
 
-首次构建需要从 GitHub 下载 Zydis。若网络不通，参考下方「联网操作规则」章节。
-
-## 功能列表
-
-| 功能 | 状态 | 说明 |
-|------|------|------|
-| Shield Hide | ✅ 已实现 | 双持时自动隐藏背后盾牌 |
-
-## 架构
-
-### Hook 层级
-
-每个功能模块独立管理自己的 Hook，模块之间无依赖。
-
-```
-游戏函数 → [Hook 拦截] → 回调检查配置 → 修改内存 → 返回
+```powershell
+cmake --build build --config Release --target crimson-desert-tweaks-tests
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-### 模块结构
+- ASI 和默认 INI 必须同层输出到 `build/Release/`；保留 CMake 的默认 INI 复制和旧输出目录 cache 清理保护。
+- 构建产物留在构建目录，安装由用户通过 DMM 手动完成。禁止自动复制到游戏或模组目录。
+- 构建成功、AOB 命中和游戏内功能验收分别记录；前两者不能替代实际游戏效果验证。
+- 文档修改只检查事实、链接和差异；已有有效证据可复用，不为文档整理重新构建或生成分析缓存。
 
-```
-src/
-├── dllmain.cpp          # 入口 + 初始化
-├── config.cpp/h         # INI 配置读取 + 快照
-├── config_watcher.cpp/h # 配置热重载（后台线程）
-├── logger.cpp/h         # 日志输出
-├── scanner.cpp/h        # AOB 签名扫描引擎
-├── version.rc           # 版本资源
-└── hooks/
-    └── shield_hide.cpp  # 盾牌隐藏 Hook
-```
+## 配置与 Hook 契约
 
-### 配置
+- `ReadBoolAliasIfPresent` 必须通过 `ReadBoolAlias` 读取 `Enabled` / `Enable`，不能仅检测别名后用 `ReadBool` 读取 canonical key。2026-06-28 盾牌隐藏曾因此失效。
+- 各功能独立管理 `Install*Hook()` / `Remove*Hook()`；未启用时跳过安装并返回成功，安装失败记录日志后继续其他功能。
+- 热重载通过 `GetConfig()` 读取新配置；Hook 安装/卸载不支持热切换，需要重启游戏。
+- 新增功能获授权后，核对 Hook、scanner 声明/实现、配置、dllmain 注册及 CMake 源文件列表。
+- AOB 提供宽松和精确候选，并用目标 EXE 验证预期命中数及指令上下文；一般至少包含 12–16 字节。已有多命中扫描以该功能的明确契约为准。
+- 日志统一经 `Log()` 写入 ASI 同目录；调试使用 `Verbose=1` 检查 DIAG，正常使用 `Verbose=0`。
 
-配置文件 `crimson-desert-tweaks.ini` 放在 ASI 同目录。
+## 逆向工具与证据
 
-```ini
-[General]
-Enabled=1
-LogEnabled=1
-Verbose=0
-MaxLogLines=2000
-InitDelayMs=3000
+当前工具链（2026-09-05 核验）：
 
-[Shield]
-Enable=1
-```
+- Ghidra 12.1.3：`D:\ghidra_12.1.3_PUBLIC\ghidraRun.bat`。
+- Ghidra MCP 6.0.0：`C:\Users\12494\Documents\Codex\MCP\ghidra-mcp-6.0.0\.venv\Scripts\bridge-mcp-ghidra.exe`；维护工具时读取 [运行环境规则](C:/Users/12494/Documents/Codex/MCP/ghidra-mcp-6.0.0/AGENTS.md)。
+- Ghidra 扩展位于 `C:\Users\12494\AppData\Roaming\ghidra\ghidra_12.1.3_PUBLIC\Extensions\GhidraMCP\`。
+- Codex 的实际 MCP 启动配置以 `C:\Users\12494\.codex\config.toml` 中的 `mcp_servers.ghidra-mcp` 为准。连接前核对实例、打开的程序和分析状态，不假定旧连接已经切换。
+- 旧分析工程 `D:\ghidra project\CrimsonDesertv1.13.00.gpr` 与同名 `.rep` 目录成套保留，作为旧版对照。升级工具不等于升级工程内的游戏二进制。
 
-## 修改规则
+逆向记录必须注明游戏版本、EXE SHA256、分析工程/程序、地址采用 VA 还是 RVA、相关指令/AOB，以及证据来自静态分析、运行日志还是用户游戏验收。推测和已确认事实分开，已否定路线保留原因。
 
-### 1. 添加新功能时
-
-1. 在 `src/hooks/` 中创建新 Hook 回调文件
-2. 在 `src/scanner.cpp` 中添加 AOB 签名扫描函数
-3. 在 `src/scanner.h` 中声明扫描函数
-4. 在 `src/config.h` 中添加配置结构 + helper
-5. 在 `src/config.cpp` 的 `ApplyConfigLayer` 中添加段落读取
-6. 在 `src/dllmain.cpp` 中注册安装/卸载 + 日志输出
-7. 在项目根目录 `CMakeLists.txt` 中添加源文件
-8. 更新 `PROGRESS.md`
-
-### 2. AOB 签名规则
-
-- 每个扫描目标提供签名：优先宽松匹配（含 `??`），精确匹配作后备
-- 签名必须包含足够的上下文字节以确保唯一性（至少 12-16 字节）
-- 新版本适配时：先在 `[General]` 中设置 `Verbose=1`，运行后查看日志中的 `DIAG` 行
-
-### 3. Hook 安装规则
-
-- 每个 Hook 模块提供 `Install*Hook()` 和 `Remove*Hook()` 函数
-- 安装函数先检查配置，若功能未启用则直接返回 true
-- 安装失败不致命，记录日志后继续
-
-### 4. 配置键别名规则 ⚠️
-
-`ReadBoolAliasIfPresent` 的别名参数（如 `Enable`/`Enabled`）需要配合 `ReadBoolAlias` 使用，**不能直接用 `ReadBool` 读 canonical key**。
-
-错误写法：
-```cpp
-// 只检测了 alias 存在，但始终读 canonical key
-// 如果 INI 写的是 Enable=1，HasIniKey("Enable")=true
-// 但 ReadBool("Enabled") 因键不存在返回默认值 false → bug
-*target = ReadBool(section, canonical_key, *target, path);
-```
-
-正确写法：
-```cpp
-// ReadBoolAlias 优先读 canonical，不存在则读 alias
-*target = ReadBoolAlias(section, canonical_key, alias_key, *target, path);
-```
-
-> 教训：2026-06-28 Shield Hide 失效，原因就是精简 config.cpp 时手写了 `ReadBool` 替代 `ReadBoolAlias`。
-
-### 5. 配置热重载
-
-- `config_watcher.cpp` 后台线程每 1 秒检查 INI 文件变化
-- 运行时开关切换通过回调中实时读取 `GetConfig()` 实现
-- **Hook 安装/卸载不支持热切换**，需重启游戏
-
-### 6. 日志规则
-
-- 所有日志通过 `Log()` 函数输出到 `crimson-desert-tweaks.log`
-- 日志文件位于 ASI 同目录
-- 生产环境设置 `Verbose=0`，调试时设 `Verbose=1`
-- DIAG 前缀用于诊断日志，正常运行时不应出现
-
-### 7. 进度更新规则 ⚠️
-
-**实时更新 PROGRESS.md，不要等功能全部做完才写。**
-
-适用范围：功能开发、Bug 修复、游戏版本适配——任何改变项目状态的编码工作。
-
-更新时机（每完成一个小步骤就写）：
-
-- 逆向分析完一个地址/结构体 → 记录发现
-- 写完一段扫描代码 → 标记完成
-- 构建测试通过或失败 → 记录结果
-- 发现一个问题或限制 → 记录下来
-- 修复了一个 Bug → 记录原因和修复方式
-
-写法要求：
-
-- 记录"做了什么、发现了什么、下一步是什么"
-- 包含足够的技术细节（地址、签名、结构体偏移、关键决策），下次会话能直接接上
-
-```
-❌ 太模糊: "修复了配置读取 bug"
-✅ 能接上: "config.cpp ReadBool 别名 bug——HasIniKey 检测 Enable 但 ReadBool 读 Enabled，
-          INI 写 Enable=1 时返回 false。已改用 ReadBoolAlias 修复。"
-```
-
-**Why:** `PROGRESS.md` 只记录当前项目事实、修改原因、验证结果和下一步，避免把开发过程散落到 README 或对话里。
+分析新版本时使用独立项目或独立程序名。清理缓存前区分临时导出和正式工程数据库；全量索引、下载包与测试产物放在明确的临时目录，验证后清理。
 
 ## 项目路径
 
-- 游戏目录: `D:\steam\steamapps\common\Crimson Desert\bin64\`
-- 模组输出目录: `D:\红色沙漠工具\模组\Crimson Desert Tweaks\`
-- 逆向参考工具: `D:\红色沙漠工具\修改器\`
-- 逆向技术文档: `docs/reverse-engineering/`
-  - Shield Hide: `docs/reverse-engineering/shield-hide.md`
-  - Blood Decals: `docs/reverse-engineering/blood-decals.md`
-- 同类 ASI 模组参考（逆向分析参考）:
-  - `D:/AI Agent Resources/GitHub/CrimsonDesertTools-main`
-  - `D:/AI Agent Resources/GitHub/CrimsonDesert-player-status-modifier-master`
-  - `D:/AI Agent Resources/GitHub/CrimsonDesert-parry-evade-master`
-  - `D:/AI Agent Resources/GitHub/CrimsonDesertMods-main`
+- 游戏目录：`D:\steam\steamapps\common\Crimson Desert\bin64\`。
+- DMM 模组目录：`D:\红色沙漠工具\模组\Crimson Desert Tweaks\`。
+- 逆向参考工具：`D:\红色沙漠工具\修改器\`。
+- 同类源码参考：`D:\AI Agent Resources\GitHub\` 下的 `CrimsonDesertTools-main`、`CrimsonDesert-player-status-modifier-master`、`CrimsonDesert-parry-evade-master`、`CrimsonDesertMods-main`。
 
-## 联网操作规则 ⚠️
+## 联网
 
-**所有联网操作（网页搜索、WebFetch、git push/pull、curl、cmake 等联网操作）必须通过当前启用的本机 VPN/系统代理。** 不要写死代理端口；VPN 软件可能更换本地代理地址。不经过代理直接联网会导致断联、未响应等问题。
+默认使用系统 TUN / 虚拟网卡模式，不为 git、curl、cmake 默认设置固定代理端口。
 
-- **获取当前系统代理**（PowerShell）:
-  ```powershell
-  (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings").ProxyServer
-  ```
-- **Git 推送前**使用当前代理：
-  ```bash
-  git config http.proxy "http://<当前代理地址>"
-  git push
-  git config --unset http.proxy
-  ```
-- 也可以使用一次性代理，不污染仓库配置：
-  ```bash
-  git -c http.proxy=http://<当前代理地址> push
-  ```
-- 如果系统代理为空或端口未监听，先停下说明情况，不要猜旧端口。
-- **CMake 下载依赖失败**时，用 GitHub 镜像作为备选：
-  ```bash
-  git config --global url."<镜像地址>".insteadOf "https://github.com"
-  ```
+- 联网失败时先说明现象并检查 TUN/代理。
+- 仅在确认命令未走 TUN 或用户明确要求时临时设置代理；未经要求不改全局 Git proxy。
+- CMake 下载依赖失败且排查后仍无法连接 GitHub，再说明情况并询问是否使用镜像。
 
-## 强制执行规则（以下规则由项目 Hook 系统强制拦截，不可绕过）
+## 保护规则与拦截说明
 
-以下规则已配置为 PreToolUse Hook，违反时会被**系统自动拦截**（非 AI 自行判断）。被拦截后请查阅本条规则，**不要尝试绕过去**。
+当前仓库不存在 `CLAUDE.md`、`.claude/settings.json` 或 `.claude/hooks/`。以下是 Codex 必须遵守的项目约束，不代表已部署 PreToolUse Hook：
 
-**当前 Hook 部署状态**：`.claude/settings.json` 和 `.claude/hooks/` 已部署。Codex 环境中等效规则通过 `AGENTS.md` 约束。
+- 禁止修改或删除 `deps/safetyhook/`，它是构建依赖的完整源码。
+- 禁止向游戏目录复制、移动、删除或写入文件；构建输出只留在 `build/Release/`。
+- 禁止 `git reset --hard`、`git checkout -- .`、`git clean -fd` 等危险还原。
+- 工具或实际 Hook 拦截操作时，停止该操作并说明返回的原因，不换写法或工具绕过。未收到具体 Hook 信息时，不把 `blocked by policy` 归因于不存在的项目 Hook。
+- 需要修改实际 Hook 或放宽保护规则时，先说明具体规则；仅在用户已明确授权该修改后执行。
 
-如果认为某个规则是误拦截：
+## 进度记录
 
-1. 停止当前危险操作。
-2. 用中文说明：哪个 Hook 拦截、原命令想做什么、为什么可能是误拦截。
-3. 询问用户是否允许修改 Hook 或临时放宽规则。
-4. 未得到用户明确同意前，不能修改 `.claude/hooks/`、`.claude/settings.json`，也不能换一种写法绕过拦截。
+改变源码、构建行为或项目状态后，及时更新 `PROGRESS.md` 中的当前事实、原因、有效验证和待确认事项。暂停项目不自动安排后续实验。
 
-| # | 规则 | Hook 文件 | 说明 |
-|---|------|----------|------|
-| 1 | **禁止 Write 覆盖已有文件** | `no-overwrite.ps1` | PROGRESS.md、AGENTS.md、CLAUDE.md、src/\*.cpp/h、CMakeLists.txt 等文件已存在时，禁止使用 Write 覆盖。必须先用 Read 读取内容，再用 Edit 在已有内容基础上追加或修改。**绝不能覆盖已有内容。** |
-| 2 | **禁止修改/删除 deps/safetyhook/** | `safetyhook-guard.ps1` | 这是 Hook 框架完整源码，构建必须，无例外。 |
-| 3 | **联网操作必须通过 VPN 代理** | `proxy-check.ps1` | 所有 git push/pull、curl、cmake 等联网操作必须显式使用当前本机 VPN/系统代理，不能写死旧端口；未设置代理时拦截。 |
-| 4 | **构建产物不自动复制** | `no-copy-build.ps1` | build/Release/ 下的产物留在原处，用户通过 DMM 手动安装 ASI 模组。AI 不负责复制。 |
-| 5 | **禁止危险 Git 还原** | `destructive-git-guard.ps1` | 禁止 `git reset --hard`、`git checkout -- .`、`git clean -fd` 等会丢失未提交改动的命令。 |
-| 6 | **禁止写入游戏目录** | `game-dir-guard.ps1` | 禁止复制、移动、删除、写入 `D:\steam\steamapps\common\Crimson Desert\bin64\`。 |
-| 7 | **修改源码后提醒更新 PROGRESS.md** | `progress-reminder.ps1` | 修改 src/\*.cpp/h 后弹出提醒（软提醒，不拦截）。 |
-
-## 已知问题和注意事项
-
-1. **不要删除 deps/safetyhook/** — 这是 Hook 框架的完整源码，构建必须。（已由 Hook #2 强制执行）
+正文保留简明状态；地址、结构、签名和已否定路线放入相应逆向技术文档并从进度文件链接。旧命令流水和逐次产物时间由 Git 历史承载，不重复追加。
