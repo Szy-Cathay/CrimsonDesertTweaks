@@ -54,12 +54,14 @@ ctest --test-dir build -C Release --output-on-failure
 
 ## 逆向工具与证据
 
-当前工具链（2026-09-05 核验）：
+原电脑工具链记录（2026-09-05 核验，用户名为 `12494`）：
+
+以下是历史机器位置，不是跨机器安装要求。2026-10-12 笔记本目录核查未找到所列 Ghidra 和 MCP 入口；原电脑离线，本次未重新核验其工具状态。只有在用户恢复相关开发后，才通过当前机器已配置的工具入口定位并核验版本，不照抄旧路径。
 
 - Ghidra 12.1.3：`D:\ghidra_12.1.3_PUBLIC\ghidraRun.bat`。
-- Ghidra MCP 6.0.0：`C:\Users\12494\Documents\Codex\MCP\ghidra-mcp-6.0.0\.venv\Scripts\bridge-mcp-ghidra.exe`；维护工具时读取 [运行环境规则](C:/Users/12494/Documents/Codex/MCP/ghidra-mcp-6.0.0/AGENTS.md)。
+- Ghidra MCP 6.0.0 的原电脑入口：`C:\Users\12494\Documents\Codex\MCP\ghidra-mcp-6.0.0\.venv\Scripts\bridge-mcp-ghidra.exe`。维护工具时先定位当前机器实际安装目录，并读取该目录的 `AGENTS.md`（若存在）。
 - Ghidra 扩展位于 `C:\Users\12494\AppData\Roaming\ghidra\ghidra_12.1.3_PUBLIC\Extensions\GhidraMCP\`。
-- Codex 的实际 MCP 启动配置以 `C:\Users\12494\.codex\config.toml` 中的 `mcp_servers.ghidra-mcp` 为准。连接前核对实例、打开的程序和分析状态，不假定旧连接已经切换。
+- 当前机器的 MCP 启动配置以其实际 `CODEX_HOME`（未设置时为当前用户 `.codex`）及可用工具接口为准，只核对本任务所需的非秘密配置。连接前核对实例、打开的程序和分析状态，不假定原电脑的配置已经迁移。
 - 旧分析工程 `D:\ghidra project\CrimsonDesertv1.13.00.gpr` 与同名 `.rep` 目录成套保留，作为旧版对照。升级工具不等于升级工程内的游戏二进制。
 
 逆向记录必须注明游戏版本、EXE SHA256、分析工程/程序、地址采用 VA 还是 RVA、相关指令/AOB，以及证据来自静态分析、运行日志还是用户游戏验收。推测和已确认事实分开，已否定路线保留原因。
@@ -67,6 +69,8 @@ ctest --test-dir build -C Release --output-on-failure
 分析新版本时使用独立项目或独立程序名。清理缓存前区分临时导出和正式工程数据库；全量索引、下载包与测试产物放在明确的临时目录，验证后清理。
 
 ## 项目路径
+
+下列路径来自原电脑记录。2026-10-12 笔记本核查未找到所列游戏和 DMM 目录；不能据此认定原电脑文件已删除，也不自动创建目录或安装工具。换机后按实际安装位置定位，核验前不部署、不运行旧路径命令。
 
 - 游戏目录：`D:\steam\steamapps\common\Crimson Desert\bin64\`。
 - DMM 模组目录：`D:\红色沙漠工具\模组\Crimson Desert Tweaks\`。

@@ -8,7 +8,7 @@
 
 **Crimson Desert** 的 ASI 功能微调模组合集，通过运行时内存 Hook 实现各种游戏体验优化。
 
-当前重点是 Crimson Desert v1.13.00 适配。
+当前暂停新功能开发和地面血迹实验。主线保留 v1.13.00 历史代码，本轮 v2.00.02 适配已撤销，当前安装版本的兼容性未确认。详见[当前状态与验收边界](PROGRESS.md)和[项目构建、测试约定](AGENTS.md)；文档维护不表示恢复开发。
 
 ---
 
@@ -17,7 +17,7 @@
 | 功能 | 说明 |
 |------|------|
 | **盾牌自动隐藏** | 双持武器时自动隐藏背后的盾牌。已适配 v1.13.00 的 ReserveSlot/FakeEquip key-load 路径。 |
-| **血迹残留时间延长** | 把 Skinned/身体/面部血迹延长到配置时间。已支持 v1.13.00 的 `GameSkinnedDecalElement` timing（`life78=1000ms`、`fade80=0`）。地面/terrain 血迹仍在逆向中，已反证的 terrain `+0x160` 路线不会使用。 |
+| **血迹残留时间延长** | 把 Skinned/身体/面部血迹延长到配置时间。已支持 v1.13.00 的 `GameSkinnedDecalElement` timing（`life78=1000ms`、`fade80=0`）。地面/terrain 血迹未完成、开发暂停；已反证的 terrain `+0x160` 路线不会使用。 |
 
 ## 安装方法
 

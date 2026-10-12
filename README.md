@@ -8,7 +8,7 @@
 
 A collection of quality-of-life tweaks for **Crimson Desert**, implemented as an ASI plugin via runtime memory hooks.
 
-The project is currently focused on Crimson Desert v1.13.00 compatibility.
+Development and ground-blood experiments are paused. The main branch retains historical v1.13.00 code; the v2.00.02 adaptation was reverted, and compatibility with the installed game version is unconfirmed. See [current status and validation limits](PROGRESS.md) and [project build/test guidance](AGENTS.md). Documentation maintenance does not resume development.
 
 ---
 
@@ -17,7 +17,7 @@ The project is currently focused on Crimson Desert v1.13.00 compatibility.
 | Feature | Description |
 |---------|-------------|
 | **Shield Auto-Hide** | Automatically hides the back shield when dual-wielding. Adapted for the v1.13.00 ReserveSlot/FakeEquip key-load path. |
-| **Blood Decals Lifetime** | Extends skinned/body/face blood decals to the configured lifetime. v1.13.00 `GameSkinnedDecalElement` timing (`life78=1000ms`, `fade80=0`) is supported. Ground/terrain blood is still under reverse-engineering and the rejected terrain `+0x160` route is not used. |
+| **Blood Decals Lifetime** | Extends skinned/body/face blood decals to the configured lifetime. v1.13.00 `GameSkinnedDecalElement` timing (`life78=1000ms`, `fade80=0`) is supported. Ground/terrain blood is unfinished and paused; the rejected terrain `+0x160` route is not used. |
 
 ## Installation
 
