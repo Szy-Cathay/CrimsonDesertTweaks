@@ -47,7 +47,6 @@ add_library(crimson-desert-tweaks SHARED
     src/config.cpp
     src/config_watcher.cpp
     src/dllmain.cpp
-    src/hooks/blood_decals.cpp
     src/hooks/shield_hide.cpp
     src/logger.cpp
     src/scanner.cpp
@@ -79,7 +78,7 @@ endif()
 enable_testing()
 
 add_executable(crimson-desert-tweaks-tests EXCLUDE_FROM_ALL
-    tests/config_and_blood_decals_test.cpp
+    tests/config_test.cpp
     src/config.cpp
 )
 
@@ -101,7 +100,9 @@ if(MSVC)
     )
 endif()
 
-add_test(NAME crimson-desert-tweaks-tests COMMAND crimson-desert-tweaks-tests)
+add_test(NAME crimson-desert-tweaks-tests
+    COMMAND crimson-desert-tweaks-tests "${CMAKE_CURRENT_SOURCE_DIR}/crimson-desert-tweaks.ini"
+)
 
 set_target_properties(crimson-desert-tweaks PROPERTIES
     OUTPUT_NAME "crimson-desert-tweaks"

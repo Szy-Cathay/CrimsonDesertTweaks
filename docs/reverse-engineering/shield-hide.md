@@ -80,6 +80,9 @@ The v1.13.00 scanner returns all matching fixed ReserveSlot/FakeEquip key loads.
 `entry + 0x08 == 15` before writing `entry + 0x10`, so non-Shield keys are
 observed but skipped.
 
+The July 4, 2026 runtime log recorded nine installed hooks at the match
+addresses above plus the hook offset of 7.
+
 v1.13.00 first-match disassembly spot check:
 
 ```text

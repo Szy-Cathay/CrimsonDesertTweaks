@@ -4,7 +4,7 @@
 
 - 解释、计划和回复使用中文；用户不懂编程，要说明实际影响和验证结果。代码注释沿用现有风格。
 - 开工先读 `PROGRESS.md` 的当前状态。编码前说明目标、假设、涉及文件和验证方式；影响范围的歧义先澄清。
-- 当前暂停新功能开发和地面血迹延时实验；只有用户明确提出新的开发需求时才恢复。v2.00.02 适配成果已撤销，当前版本兼容性尚未确认。
+- 当前仅保留盾牌隐藏，新功能开发暂停。现有盾牌隐藏代码基于旧游戏版本，当前游戏版本的兼容性尚未确认。
 - 只修改当前请求必需的内容。保留用户已有工作，不顺手重构；已存在的文件先读再用补丁编辑，不使用整文件覆盖命令。
 - `AGENTS.md` 和 `PROGRESS.md` 随仓库维护。进度写入 `PROGRESS.md`；README 仅在用户要求或公开说明变化时更新。
 
@@ -14,11 +14,10 @@
 
 | 内容 | 当前事实 | 修改前阅读 |
 |------|----------|------------|
-| Shield Hide | 已发布；主线保留旧版本适配路径，v2.00.02 未验收 | `src/hooks/shield_hide.cpp`、`docs/reverse-engineering/shield-hide.md` |
-| Blood Decals | 主线仍包含血迹代码和早期地面血迹路径；地面效果未完成，开发暂停 | `src/hooks/blood_decals.cpp`、`src/hooks/blood_decals_timing.h`、`docs/reverse-engineering/blood-decals.md` |
+| Shield Hide | 已发布；本地源码保留 v1.13.00 的适配路径 | `src/hooks/shield_hide.cpp`、`docs/reverse-engineering/shield-hide.md` |
 | 扫描与初始化 | 扫描在 `src/scanner.cpp/h`，安装/卸载在 `src/dllmain.cpp` | 修改功能时核对这两处注册 |
 | 配置与热重载 | 配置在 `src/config.cpp/h`，监视线程在 `src/config_watcher.cpp/h` | 默认键和值以根目录 INI 为准 |
-| 日志与测试 | 日志经 `src/logger.cpp/h`；配置/血迹测试在 `tests/config_and_blood_decals_test.cpp` | 按实际修改选择验证 |
+| 日志与测试 | 日志经 `src/logger.cpp/h`；配置测试在 `tests/config_test.cpp` | 按实际修改选择验证 |
 
 旧交接和实验文档属于历史证据，不能作为恢复开发的授权或当前待办；读取时先核对记录的游戏版本和日期。
 
@@ -31,7 +30,7 @@ cmake -S . -B build -A x64
 cmake --build build --config Release
 ```
 
-配置或血迹逻辑变化时，显式构建并运行相关测试：
+配置逻辑变化时，显式构建并运行相关测试：
 
 ```powershell
 cmake --build build --config Release --target crimson-desert-tweaks-tests

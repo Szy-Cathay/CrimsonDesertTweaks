@@ -6,9 +6,9 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d7)](https://www.microsoft.com/windows)
 [![Game](https://img.shields.io/badge/game-Crimson%20Desert-orange)](https://crimsondesert.pearlabyss.com/)
 
-A collection of quality-of-life tweaks for **Crimson Desert**, implemented as an ASI plugin via runtime memory hooks.
+A shield visibility tweak for **Crimson Desert**, implemented as an ASI plugin.
 
-Development and ground-blood experiments are paused. The main branch retains historical v1.13.00 code; the v2.00.02 adaptation was reverted, and compatibility with the installed game version is unconfirmed. See [current status and validation limits](PROGRESS.md) and [project build/test guidance](AGENTS.md). Documentation maintenance does not resume development.
+Development is paused. The shield hook targets game version v1.13.00, and compatibility with later versions remains unverified. See [project status](PROGRESS.md) and [build and test guidance](AGENTS.md).
 
 ---
 
@@ -17,7 +17,6 @@ Development and ground-blood experiments are paused. The main branch retains his
 | Feature | Description |
 |---------|-------------|
 | **Shield Auto-Hide** | Automatically hides the back shield when dual-wielding. Adapted for the v1.13.00 ReserveSlot/FakeEquip key-load path. |
-| **Blood Decals Lifetime** | Extends skinned/body/face blood decals to the configured lifetime. v1.13.00 `GameSkinnedDecalElement` timing (`life78=1000ms`, `fade80=0`) is supported. Ground/terrain blood is unfinished and paused; the rejected terrain `+0x160` route is not used. |
 
 ## Installation
 
@@ -30,7 +29,7 @@ Install via [DMM](https://www.nexusmods.com/crimsondesert/mods/633):
 
 ## Configuration
 
-Edit `crimson-desert-tweaks.ini`. Changes take effect automatically (hot reload).
+Edit `crimson-desert-tweaks.ini`. Logging settings reload automatically. Changes that enable or disable the shield hook take effect after restarting the game.
 
 ```ini
 [General]
@@ -42,11 +41,6 @@ InitDelayMs=3000
 
 [Shield]
 Enable=1                    # Shield auto-hide
-
-[BloodDecals]
-Enabled=1                   # Blood decal lifetime extension
-LifetimeSeconds=600.0       # Target skinned/body/face blood lifetime
-ScanIntervalMs=100          # Worker scan interval, capped internally to 100ms
 ```
 
 ## Build
@@ -87,7 +81,6 @@ The INI is copied from the repository template so the ASI and default configurat
 - [Zydis](https://github.com/zyantific/zydis) — Disassembler
 
 ### Reverse Engineering
-- [Rumi's Blood mod by RumiYumi](https://www.nexusmods.com/crimsondesert/mods/2929), local binary copy `D:\AI Agent Resources\GitHub\rumi_blood_mod\CrimsonDesertBloodDecals.asi` — behavior/compatibility reference for blood mark lifetime. The Nexus page lists MIT licensing but also restrictive file/asset permissions, so this project does not include, redistribute, or copy files/assets from that mod.
 - [tkhquang/CrimsonDesertTools](https://github.com/tkhquang/CrimsonDesertTools), local source copy `D:\AI Agent Resources\GitHub\CrimsonDesertTools-main` — ASI project layout and Crimson Desert runtime-hook reference
 - [Orcax-1399/CrimsonDesert-player-status-modifier](https://github.com/Orcax-1399/CrimsonDesert-player-status-modifier), local source copy `D:\AI Agent Resources\GitHub\CrimsonDesert-player-status-modifier-master` — player-status ASI source and SafetyHook/CMake patterns
 - [Orcax-1399/CrimsonDesert-parry-evade](https://github.com/Orcax-1399/CrimsonDesert-parry-evade), local source copy `D:\AI Agent Resources\GitHub\CrimsonDesert-parry-evade-master` — Crimson Desert hook/scanner reference
@@ -95,8 +88,4 @@ The INI is copied from the repository template so the ASI and default configurat
 - [FLiNG Trainer](https://flingtrainer.com/trainer/crimson-desert-trainer/) — Trainer reference
 - [bbfox0703](https://www.nexusmods.com/crimsondesert/mods/64) — Cheat Engine table (1.12.02)
 
-Detailed reverse-engineering notes are kept in:
-
-- `docs/reverse-engineering/shield-hide.md`
-- `docs/reverse-engineering/blood-decals.md`
-- `docs/reverse-engineering/v1.13.00-handoff.md`
+[Shield Hide technical notes](docs/reverse-engineering/shield-hide.md)

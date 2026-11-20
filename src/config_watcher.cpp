@@ -41,13 +41,10 @@ void ApplyLoggerReload(const ModConfig& previous, const ModConfig& current) {
 
     UpdateLoggerConfig(current.general.log_enabled, current.general.verbose, current.general.max_log_lines);
     if (current.general.log_enabled) {
-        Log("config-watcher: config reloaded (verbose=%d max-log-lines=%lu shield=%d blood-decals=%d blood-life=%.3f blood-scan-ms=%lu)",
+        Log("config-watcher: config reloaded (verbose=%d max-log-lines=%lu shield=%d)",
             current.general.verbose ? 1 : 0,
             static_cast<unsigned long>(current.general.max_log_lines),
-            current.shield.enabled ? 1 : 0,
-            current.blood_decals.enabled ? 1 : 0,
-            static_cast<double>(current.blood_decals.lifetime_seconds),
-            static_cast<unsigned long>(current.blood_decals.scan_interval_ms));
+            current.shield.enabled ? 1 : 0);
     }
 }
 
@@ -94,8 +91,7 @@ void ConfigWatcherLoop() {
         ApplyLoggerReload(previous, next);
 
         // Hook loadout changes require restart
-        if ((ShouldInstallShieldHideHook(previous) != ShouldInstallShieldHideHook(next) ||
-             ShouldInstallBloodDecalsHook(previous) != ShouldInstallBloodDecalsHook(next)) &&
+        if (ShouldInstallShieldHideHook(previous) != ShouldInstallShieldHideHook(next) &&
             next.general.log_enabled) {
             Log("config-watcher: hook loadout changed; restart game to apply");
         }

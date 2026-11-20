@@ -6,9 +6,9 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d7)](https://www.microsoft.com/windows)
 [![Game](https://img.shields.io/badge/game-Crimson%20Desert-orange)](https://crimsondesert.pearlabyss.com/)
 
-**Crimson Desert** 的 ASI 功能微调模组合集，通过运行时内存 Hook 实现各种游戏体验优化。
+**Crimson Desert** 的 ASI 模组，用于双持武器时隐藏背盾。
 
-当前暂停新功能开发和地面血迹实验。主线保留 v1.13.00 历史代码，本轮 v2.00.02 适配已撤销，当前安装版本的兼容性未确认。详见[当前状态与验收边界](PROGRESS.md)和[项目构建、测试约定](AGENTS.md)；文档维护不表示恢复开发。
+当前暂停开发。盾牌隐藏代码适配游戏 v1.13.00，后续版本的兼容性仍待验证。详见[项目进度](PROGRESS.md)和[构建与测试约定](AGENTS.md)。
 
 ---
 
@@ -17,7 +17,6 @@
 | 功能 | 说明 |
 |------|------|
 | **盾牌自动隐藏** | 双持武器时自动隐藏背后的盾牌。已适配 v1.13.00 的 ReserveSlot/FakeEquip key-load 路径。 |
-| **血迹残留时间延长** | 把 Skinned/身体/面部血迹延长到配置时间。已支持 v1.13.00 的 `GameSkinnedDecalElement` timing（`life78=1000ms`、`fade80=0`）。地面/terrain 血迹未完成、开发暂停；已反证的 terrain `+0x160` 路线不会使用。 |
 
 ## 安装方法
 
@@ -30,7 +29,7 @@
 
 ## 配置文件
 
-编辑 `crimson-desert-tweaks.ini`，保存后自动生效（支持热重载）。
+编辑 `crimson-desert-tweaks.ini`。日志设置保存后自动重载。启停盾牌隐藏功能需重启游戏。
 
 ```ini
 [General]
@@ -42,11 +41,6 @@ InitDelayMs=3000
 
 [Shield]
 Enable=1                    # 盾牌自动隐藏
-
-[BloodDecals]
-Enabled=1                   # 血迹残留时间延长
-LifetimeSeconds=600.0       # Skinned/身体/面部血迹目标残留时间
-ScanIntervalMs=100          # 扫描间隔，内部上限收紧到 100ms
 ```
 
 ## 构建
@@ -87,7 +81,6 @@ INI 会从仓库根目录默认模板复制，确保 ASI 和默认配置文件�
 - [Zydis](https://github.com/zyantific/zydis) — 反汇编引擎
 
 ### 逆向参考
-- [Rumi's Blood mod by RumiYumi](https://www.nexusmods.com/crimsondesert/mods/2929)，本地二进制副本 `D:\AI Agent Resources\GitHub\rumi_blood_mod\CrimsonDesertBloodDecals.asi` — 血迹残留行为/兼容性参考。Nexus 页面写有 MIT 许可，但权限表同时限制文件/资产使用，因此本项目不包含、不再分发、不复制该模组文件或资产。
 - [tkhquang/CrimsonDesertTools](https://github.com/tkhquang/CrimsonDesertTools)，本地源码副本 `D:\AI Agent Resources\GitHub\CrimsonDesertTools-main` — ASI 项目结构与 Crimson Desert 运行时 Hook 参考
 - [Orcax-1399/CrimsonDesert-player-status-modifier](https://github.com/Orcax-1399/CrimsonDesert-player-status-modifier)，本地源码副本 `D:\AI Agent Resources\GitHub\CrimsonDesert-player-status-modifier-master` — player-status ASI 源码与 SafetyHook/CMake 模式参考
 - [Orcax-1399/CrimsonDesert-parry-evade](https://github.com/Orcax-1399/CrimsonDesert-parry-evade)，本地源码副本 `D:\AI Agent Resources\GitHub\CrimsonDesert-parry-evade-master` — Crimson Desert hook/scanner 参考
@@ -95,8 +88,4 @@ INI 会从仓库根目录默认模板复制，确保 ASI 和默认配置文件�
 - [FLiNG Trainer（风灵月影）](https://flingtrainer.com/trainer/crimson-desert-trainer/) — 修改器参考
 - [bbfox0703](https://www.nexusmods.com/crimsondesert/mods/64) — Cheat Engine 表格 (1.12.02)
 
-详细逆向记录保存在：
-
-- `docs/reverse-engineering/shield-hide.md`
-- `docs/reverse-engineering/blood-decals.md`
-- `docs/reverse-engineering/v1.13.00-handoff.md`
+[盾牌隐藏技术记录](docs/reverse-engineering/shield-hide.md)

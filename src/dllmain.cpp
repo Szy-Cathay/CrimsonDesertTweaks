@@ -16,8 +16,6 @@
 
 bool InstallShieldHideHook();
 void RemoveShieldHideHook();
-bool InstallBloodDecalsHook();
-void RemoveBloodDecalsHook();
 
 // ── Anonymous namespace ───────────────────────────────────────────────
 
@@ -75,17 +73,12 @@ void LogEffectiveConfig(const ModConfig& config) {
         static_cast<unsigned long>(config.general.init_delay_ms));
     Log("config: Shield Enabled=%d",
         config.shield.enabled ? 1 : 0);
-    Log("config: BloodDecals Enabled=%d LifetimeSeconds=%.3f ScanIntervalMs=%lu",
-        config.blood_decals.enabled ? 1 : 0,
-        static_cast<double>(config.blood_decals.lifetime_seconds),
-        static_cast<unsigned long>(config.blood_decals.scan_interval_ms));
 }
 
 // ── Init / cleanup ────────────────────────────────────────────────────
 
 void CleanupAfterInitializationFailure() {
     StopConfigWatcher();
-    RemoveBloodDecalsHook();
     RemoveShieldHideHook();
 }
 
@@ -135,9 +128,6 @@ DWORD InitializeModUnchecked() {
     // Install hooks
     if (!InstallShieldHideHook()) {
         Log("dllmain: shield-hide hook unavailable; continuing");
-    }
-    if (!InstallBloodDecalsHook()) {
-        Log("dllmain: blood-decals runtime unavailable; continuing");
     }
 
     // Start config watcher for hot-reload
@@ -198,7 +188,6 @@ BOOL APIENTRY DllMain(HMODULE module, const DWORD reason, LPVOID) {
 
         Log("dllmain: process detach started");
         StopConfigWatcher();
-        RemoveBloodDecalsHook();
         RemoveShieldHideHook();
         Log("dllmain: process detach finished");
         ShutdownLogger();

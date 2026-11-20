@@ -3,10 +3,7 @@
 #include <Windows.h>
 
 #include <atomic>
-#include <cerrno>
-#include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -36,28 +33,6 @@ bool HasIniKey(const wchar_t* section, const wchar_t* key, const std::wstring& p
 
 DWORD ReadDword(const wchar_t* section, const wchar_t* key, const DWORD default_value, const std::wstring& path) {
     return static_cast<DWORD>(GetPrivateProfileIntW(section, key, static_cast<int>(default_value), path.c_str()));
-}
-
-float ReadFloat(const wchar_t* section, const wchar_t* key, const float default_value, const std::wstring& path) {
-    wchar_t buffer[64]{};
-    if (GetPrivateProfileStringW(
-            section,
-            key,
-            L"",
-            buffer,
-            static_cast<DWORD>(sizeof(buffer) / sizeof(buffer[0])),
-            path.c_str()) == 0) {
-        return default_value;
-    }
-
-    wchar_t* end = nullptr;
-    errno = 0;
-    const float value = std::wcstof(buffer, &end);
-    if (end == buffer || errno == ERANGE || !std::isfinite(value)) {
-        return default_value;
-    }
-
-    return value;
 }
 
 void ReadBoolIfPresent(const wchar_t* section,
@@ -105,15 +80,6 @@ void ReadDwordIfPresent(const wchar_t* section,
     }
 }
 
-void ReadFloatIfPresent(const wchar_t* section,
-                        const wchar_t* key,
-                        float* const target,
-                        const std::wstring& path) {
-    if (target != nullptr && HasIniKey(section, key, path)) {
-        *target = ReadFloat(section, key, *target, path);
-    }
-}
-
 // ── Config layer application ───────────────────────────────────────────
 
 void ApplyConfigLayer(const std::wstring& path, ModConfig* const next) {
@@ -130,11 +96,6 @@ void ApplyConfigLayer(const std::wstring& path, ModConfig* const next) {
 
     // [Shield]
     ReadBoolAliasIfPresent(L"Shield", L"Enabled", L"Enable", &next->shield.enabled, path);
-
-    // [BloodDecals]
-    ReadBoolAliasIfPresent(L"BloodDecals", L"Enabled", L"Enable", &next->blood_decals.enabled, path);
-    ReadFloatIfPresent(L"BloodDecals", L"LifetimeSeconds", &next->blood_decals.lifetime_seconds, path);
-    ReadDwordIfPresent(L"BloodDecals", L"ScanIntervalMs", &next->blood_decals.scan_interval_ms, path);
 }
 
 void SanitizeConfig(ModConfig* const next) {
@@ -146,19 +107,6 @@ void SanitizeConfig(ModConfig* const next) {
         next->general.max_log_lines = 2000;
     } else if (next->general.max_log_lines > 1000000) {
         next->general.max_log_lines = 1000000;
-    }
-
-    if (!std::isfinite(next->blood_decals.lifetime_seconds) ||
-        next->blood_decals.lifetime_seconds <= 0.0f) {
-        next->blood_decals.lifetime_seconds = 600.0f;
-    } else if (next->blood_decals.lifetime_seconds > 86400.0f) {
-        next->blood_decals.lifetime_seconds = 86400.0f;
-    }
-
-    if (next->blood_decals.scan_interval_ms < 100) {
-        next->blood_decals.scan_interval_ms = 100;
-    } else if (next->blood_decals.scan_interval_ms > 60000) {
-        next->blood_decals.scan_interval_ms = 60000;
     }
 }
 
